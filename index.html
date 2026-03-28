@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>30 NGÀY</title>
+	<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Lora:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #111; color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        
+        /* Nút tải ảnh nền */
+        .upload-section { margin-bottom: 15px; }
+        .upload-label { background: #e67e22; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .upload-label:hover { background: #d35400; }
+        
+        /* KHUNG GAME (Tỷ lệ chuẩn 16:9, dựa theo BG của bạn) */
+        #game-board {
+            position: relative;
+            width: 1000px;
+            aspect-ratio: 16 / 9;
+            background-image: url('BG.jpg'); /* Đọc ảnh mặc định */
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            overflow: hidden;
+            font-family: 'MedievalSharp', serif;
+        }
+
+        /* ---------------------------------------------------
+           CĂN CHỈNH TỌA ĐỘ (ABSOLUTE POSITIONING)
+           Tất cả các box dưới đây đều trong suốt, chỉ hiện chữ
+        --------------------------------------------------- */
+        
+		#buildTitleText {
+            position: absolute;
+            top: 1%; /* Cách mép trên màn hình */
+            left: 0;
+            width: 100%; /* Trải dài ra để dùng text-align center */
+            text-align: center; /* Ép chữ vào đúng chính giữa */
+            color: #f1c40f;
+            text-shadow: 2px 2px 4px #000;
+            font-size: 28px;
+            margin: 0; 
+            z-index: 101;
+        }
+		
+        .ui-element { position: absolute; display: flex; align-items: center; justify-content: center; font-weight: bold; text-shadow: 1px 1px 2px #000; }
+
+        /* THANH CHỈ SỐ (Top Bar) */
+        .stat-val { top: 14%; height: 5.5%; color: #f1c40f; font-size: 20px; }
+        #val-day { left: 20.5%; width: 10%; }
+        #val-hp { left: 37%; width: 9%; }
+        #val-money { left: 51.5%; width: 8.5%; }
+        #val-wood { left: 66%; width: 8%; }
+        #val-stone { left: 78.5%; width: 8%; }
+
+        /* THANH BUFF (Ô ngọn lửa) */
+        #buffBar { top: 22.7%; left: 40%; width: 20%; height: 3.5%; color: #e74c3c; font-size: 20px; }
+
+        /* KHU VỰC CUỘN GIẤY (Log & Sự kiện) */
+        /* Chữ trên giấy phải màu đen/nâu sẫm, bỏ viền đen */
+        #log-container {
+            position: absolute; top: 31%; left: 20.5%; width: 47%; height: 29%;
+            color: #3e2723; font-family: 'Lora', serif; font-size: 18px; line-height: 1.5;
+            display: flex; flex-direction: column; padding: 5px; /* Thêm flex để chia phần */
+			overflow-y: hidden; 
+        }
+		#log-title {
+			text-align: center; font-weight: bold; margin-bottom: 5px;
+			border-bottom: 1px dashed #8b4513; padding-bottom: 5px;
+			flex-shrink: 0; /* Giúp tiêu đề luôn đứng im ở trên cùng */
+		}
+
+		#log-text {
+			flex-grow: 1; text-align: left; padding-right: 5px; /* Giúp nội dung tự cuộn */
+			overflow-y: auto;
+			scrollbar-width: none; /* Ẩn scrollbar trên Firefox */
+            -ms-overflow-style: none; /* Ẩn scrollbar trên IE/Edge */
+            scroll-behavior: smooth; /* HIỆU ỨNG TRƯỢT MƯỢT MÀ KHI CÓ DÒNG MỚI */
+        
+		}
+		/* Đổi thành #log-text thay vì #log-container */
+        #log-text::-webkit-scrollbar { 
+            display: none; 
+        }
+        #event-container {
+            position: absolute; top: 62.5%; left: 30%; width: 36%; height: 18%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #3e2723; font-weight: bold; text-align: center;
+			font-family: 'Lora', serif; /* Thêm dòng này để sửa lỗi chữ "Giao dịch" */
+		}
+
+		
+        /* KHU VỰC THẺ BÀI (Bên phải) */
+        .deck-title {
+			position: absolute;
+			top: 12%; /* Kéo chữ "Kho Bài" lên góc trên. Tăng giảm % tùy ý */
+			font-size: 16px;
+			color: #bdc3c7;
+		}
+
+		#deck-count {
+			position: absolute;
+			bottom: 8%; /* Kéo số "52" xuống góc dưới. Tăng giảm % tùy ý */
+			font-size: 22px;
+			font-weight: bold;
+			color: #f1c40f;
+			text-shadow: 1px 1px 3px #000; /* Thêm viền đen cho số dễ đọc trên nền vân thẻ bài */
+		}
+		
+		.card-slot { width: 7.5%; height: 21.5%; font-size: 26px; border-radius: 8px; flex-direction: column; }
+        #deck-slot { top: 28.5%; left: 78%; color: #bdc3c7; font-size: 14px; cursor: pointer; background-image: url('Back.jpg'); background-size: 100% 100%; background-repeat: no-repeat; }
+        #active-slot { top: 58.5%; left: 69%; background: rgba(255,255,255,0.8); color: #2c3e50; text-shadow: none; font-size: 32px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+			background-image: url('Front.jpg'); background-size: 100% 100%; background-repeat: no-repeat; }
+        #discard-slot { top: 58.5%; left: 79%; color: #7f8c8d;background-image: url('Back.jpg'); background-size: 100% 100%; background-repeat: no-repeat;}
+        /* Tách chữ cho Mộ bài (#discard-slot) */
+		.discard-val { position: absolute; top: 6%; font-size: 30px; font-weight: bold; }
+		.discard-suit { position: absolute; bottom: 2%; font-size: 36px; }
+		
+        .red-suit { color: #c0392b !important; }
+
+        /* KHU VỰC NÚT BẤM DƯỚI CÙNG */
+        .bottom-btn { top: 91%; height: 7%; font-size: 20px; cursor: pointer; transition: 0.1s; color: #ecf0f1; background: transparent; border: none; font-family: 'MedievalSharp', serif; text-shadow: 1px 1px 2px #000; }
+        .bottom-btn:hover { color: #f1c40f; background: rgba(255,255,255,0.1); }
+        .bottom-btn:disabled { color: #7f8c8d; cursor: not-allowed; background: transparent; }
+        
+        #btnRoll { left: 10%; width: 19%; }
+        #btnDraw { left: 31%; width: 19%; }
+        #btnBuild { left: 51.5%; width: 19%; color: #e17055; }
+        #btnEnd { left: 72%; width: 19%; }
+
+        /* NÚT TRONG SỰ KIỆN (Trên cuộn giấy) */
+        .event-btn { background: #8e44ad; color: white; border: 1px solid #5e3370; padding: 6px 12px; margin: 2px; border-radius: 4px; cursor: pointer; font-family: 'Lora', serif; font-size: 12px; box-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+        .event-btn:hover { background: #9b59b6; }
+
+        /* SCROLLBAR cho cuộn giấy */
+        #log-container::-webkit-scrollbar { width: 6px; }
+        #log-container::-webkit-scrollbar-thumb { background: rgba(139, 69, 19, 0.5); border-radius: 3px; }
+
+        /* MODAL XÂY DỰNG (Overlay đè lên game) */
+		#buildInnerScroll {
+            height: 100%;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+		
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        
+		.modal-content {
+            width: 90%;
+            max-width: 550px;
+            position: relative;
+            color: #ecf0f1;
+        }
+
+        #buildBgBox {
+            /* 1. ĐỔI CHIẾN THUẬT KÍCH THƯỚC */
+            height: 85vh; /* Ép khung chỉ cao tối đa 85% màn hình, đảm bảo không bị lẹm */
+            aspect-ratio: 1080 / 1920; /* Máy sẽ tự bóp chiều ngang lại theo chuẩn ảnh */
+            max-width: 40vw; /* Phòng hờ tránh tràn ngang trên điện thoại */
+            
+            background-image: url('Box1.jpg');
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-color: transparent;
+            border: none;
+
+            /* 2. ÉP MẠNH 2 BÊN HÔNG VÀO TRONG LÕI */
+            /* Thứ tự: TRÊN - PHẢI - DƯỚI - TRÁI */
+            padding: 80px 65px 81px 85px; /* Tăng Phải và Trái lên 85px để né viền gỗ */
+            
+            box-sizing: border-box; 
+            display: flex;
+            flex-direction: column;
+        }
+		
+		.close-btn {
+            position: absolute;
+            top: -5px;   /* Kéo tụt xuống để né viền gỗ trên */
+            right: -31px; /* Kéo xích vào để né viền gỗ phải */
+            font-size: 32px; /* Phóng to lên chút cho dễ bấm */
+            cursor: pointer;
+            color: #e74c3c;
+            z-index: 102;
+            text-shadow: 2px 2px 4px #000; /* Thêm bóng viền đen cho nổi bật */
+        }
+        
+		.build-item { 
+            background: transparent; /* Xóa màu nền xanh xám cũ */
+            border: none;            /* Xóa viền xám cũ */
+            
+            padding: 15px 5px; 
+            margin-bottom: 5px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+		
+        .build-action-btn { background: #27ae60; border: none; color: white; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .build-action-btn:disabled { background: #7f8c8d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+	<div id="tutorialModal" class="modal" style="display: flex;">
+		<div class="modal-content" style="
+            max-width: 550px; 
+            text-align: center; 
+            font-family: 'Lora', serif; 
+            /* CÁC LỆNH CHÈN VÀ ÉP ẢNH NỀN VÀO ĐÂY: */
+            background-image: url('Box.jpg'); 
+            background-size: 100% 100%; 
+            background-repeat: no-repeat; 
+            background-position: center; 
+            /* Tăng nhẹ padding để chữ không đè lên viền ảnh Box (nếu có) */
+            padding: 60px 40px 60px 60px; 
+			box-sizing: border-box;
+            /* Bỏ màu nền solid cũ và viền vàng mặc định để dùng viền của ảnh Box */
+            background-color: transparent; 
+            border: none; 
+			overflow: hidden;
+        ">
+            <h2 style="color: #f1c40f; margin-top: 0; border-bottom: 2px dashed #8b4513; padding-bottom: 10px;">Hướng dẫn</h2>
+            
+            <div style="text-align: left; font-size: 16px; line-height: 1.6; height: 250px; overflow-y: auto; padding-right: 10px; color: #ecf0f1;">
+                <p><b>🎯 Mục tiêu:</b> Sống sót qua 30 ngày và tổng tài sản đạt ít nhất <b>35 Tiền</b> (Quy chiếu: 2 Gỗ = 1 Tiền, 2 Đá = 1 Tiền).</p>
+                <p><b>⏳ Trình tự mỗi ngày:</b> Bạn phải thực hiện lần lượt 3 hành động:</p>
+                <ul style="padding-left: 20px;">
+                    <li style="margin-bottom: 8px;"><b>1. Đổ Xúc Xắc:</b> Tìm kiếm tài nguyên. (1-2: Gỗ, 3-4: Đá, 5-6: Tiền).</li>
+                    <li style="margin-bottom: 8px;"><b>2. Bốc Bài:</b> Đối mặt với sự kiện ngẫu nhiên.
+                        <ul style="padding-left: 20px; list-style-type: circle; color: #bdc3c7;">
+                            <li>♠️ <b>Bích:</b> Quái thú tấn công.</li>
+                            <li>♣️ <b>Tép:</b> Phát hiện tài nguyên.</li>
+                            <li>♦️ <b>Rô:</b> Thị trường giao dịch.</li>
+                            <li>♥️ <b>Cơ:</b> Phép màu, hồi phục.</li>
+                        </ul>
+                    </li>
+                    <li style="margin-bottom: 8px;"><b>3. Xây Dựng & Kết Thúc:</b> Nâng cấp thung lũng. Kết thúc ngày để tiếp tục.</li>
+                </ul>
+                <p style="color: #ecf0f1;"><b>⚠️ Chú ý:</b> Các lá bài J, Q, K sẽ kích hoạt các sự kiện lớn. Cứ mỗi 5 ngày, bạn phải trả <b>1 Gỗ bảo trì</b> cho mỗi công trình vĩnh viễn, nếu không chúng sẽ bị đình chỉ!</p>
+            </div>
+
+            <button class="build-action-btn" style="background: #27ae60; padding: 12px 40px; font-size: 18px; margin-top: 20px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); background-image: url('Choice.jpg'); background-size: 100% 100%; background-repeat: no-repeat; " onclick="closeTutorial()">ĐÃ HIỂU, BẮT ĐẦU!</button>
+        </div>
+    </div>
+
+    <div id="game-board">
+        
+        <div id="val-day" class="ui-element stat-val">1/30</div>
+        <div id="val-hp" class="ui-element stat-val">10/10</div>
+        <div id="val-money" class="ui-element stat-val">0</div>
+        <div id="val-wood" class="ui-element stat-val">0</div>
+        <div id="val-stone" class="ui-element stat-val">0</div>
+
+        <div id="buffBar" class="ui-element"></div>
+
+        <div id="log-container">
+            <div id="log-title">Nhật ký</div>
+            <div id="log-text">Nhấn "Đổ Xúc Xắc" để bắt đầu...</div>
+        </div>
+
+        <div id="event-container" style="display: none;"></div>
+
+        <div id="deck-slot" class="ui-element card-slot">
+			<span class="deck-title">Kho Bài</span>
+			<span id="deck-count">52</span>
+		</div>
+        <div id="active-slot" class="ui-element card-slot"></div>
+        <div id="discard-slot" class="ui-element card-slot"></div>
+
+        <button id="btnRoll" class="ui-element bottom-btn" onclick="initPhaseRoll()">1. Đổ Xúc Xắc</button>
+        <button id="btnDraw" class="ui-element bottom-btn" onclick="phaseDraw()">2. Bốc Bài</button>
+        <button id="btnBuild" class="ui-element bottom-btn" onclick="openBuildMenu()">Xây Dựng</button>
+        <button id="btnEnd" class="ui-element bottom-btn" onclick="phaseEndDay()">3. Kết Thúc</button>
+
+    </div>
+
+    <div id="buildModal" class="modal">
+        <h3 id="buildTitleText">Xây dựng công trình</h3>
+
+        <div class="modal-content" id="buildBgBox">
+            <span class="close-btn" onclick="closeBuildMenu()">✖</span>
+            
+            <div id="buildInnerScroll">
+                <div id="buildList"></div>
+                <div id="workshopArea" style="margin-top: 15px; border-top: 1px dashed #7f8c8d; padding-top: 10px; display: none;">
+                    <button class="build-action-btn" style="background:#f39c12; width: 100%;" onclick="useWorkshop()" id="btnUseWorkshop">Dùng Xưởng Mộc: Đổi 1 Đá lấy 3 Gỗ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+
+    /* LOGIC GAME (Tương tự bản cũ) */
+    const suits = [{s: '♠', c: 'black', n: 'Bích'}, {s: '♣', c: 'black', n: 'Tép'}, {s: '♦', c: 'red', n: 'Rô'}, {s: '♥', c: 'red', n: 'Cơ'}];
+    const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    let deck = [];
+    
+    let state = {
+        day: 1, hp: 15, maxHp: 15, money: 0, wood: 0, stone: 0,
+        phase: 0, permBuildings: 0,
+        buildings: { camp: 0, market: 0, wall: 0, workshop: 0, storage: 0 },
+        suspended: { camp: false, market: false, wall: false, workshop: false, storage: false },
+        trapInInv: 0, trapPlaced: false, 
+        currentCard: null,
+        buffs: { skipPhase1: false, defense: 0, inflationEndDay: 0, usedWorkshopToday: false }
+    };
+
+    const bData = [
+        { id: 'trap', name: 'Bẫy Gai (Tiêu hao)', cMoney: 0, cWood: 3, cStone: 0, desc: 'Giảm 25% sát thương quái, giết nếu quái là 1, 2, 3.' },
+        { id: 'camp', name: 'Trại Khai Thác', cMoney: 3, cWood: 2, cStone: 3, desc: '+1 Đá mỗi ngày.' },
+        { id: 'market', name: 'Chợ Thương Mại', cMoney: 4, cWood: 4, cStone: 0, desc: '+1 Tiền mỗi ngày.' },
+        { id: 'wall', name: 'Tường Thành', cMoney: 0, cWood: 2, cStone: 8, desc: 'Giảm 2 sát thương từ quái.' },
+        { id: 'workshop', name: 'Xưởng Mộc', cMoney: 2, cWood: 0, cStone: 4, desc: 'Đổi 1 Đá lấy 3 Gỗ (1 lần/ngày).' },
+        { id: 'storage', name: 'Kho Dự Trữ', cMoney: 5, cWood: 8, cStone: 0, desc: 'Tăng Max HP lên 20. Lập tức hồi 3 HP.' }
+    ];
+
+    function initDeck() {
+        deck = [];
+        for (let s of suits) for (let v of values) deck.push({ v: v, s: s.s, color: s.c, n: s.n });
+        deck = deck.sort(() => Math.random() - 0.5);
+    }
+    initDeck();
+
+    function logMsg(msg) {
+        const lb = document.getElementById('log-text');
+        lb.innerHTML += `<div>- ${msg}</div>`;
+        lb.scrollTop = lb.scrollHeight;
+    }
+
+    function rollD6() { return Math.floor(Math.random() * 6) + 1; }
+    
+	// Hàm tước sức mạnh khi nhà sập hoặc bị đình chỉ
+    function removeBuildingBuff(id) {
+        if (id === 'wall') {
+            state.buffs.defense = 0; // Mất giáp
+        }
+        else if (id === 'storage') {
+            state.maxHp = 15; // Giả sử 15 là mức Max HP gốc của bạn
+            state.hp = Math.min(state.hp, state.maxHp); // Gọt máu thừa
+        }
+    }
+
+    // Hàm khôi phục sức mạnh khi xây mới hoặc nộp phạt xong
+    function applyBuildingBuff(id) {
+        if (id === 'wall') {
+            state.buffs.defense = 2; // Có giáp lại
+        }
+        else if (id === 'storage') {
+            // Theo như code cũ của bạn: Tăng max máu và hồi 3 máu
+            state.maxHp = 20; // (Nếu base maxHp của bạn thấp hơn 15 thì sửa số này nhé)
+            state.hp = Math.min(state.maxHp, state.hp + 3); 
+        }
+        // Thêm nhà mới sau này ở đây.
+    }
+	
+    function updateUI() {
+        document.getElementById('val-day').innerText = `${state.day}/30`;
+        document.getElementById('val-hp').innerText = `${state.hp}/${state.maxHp}`;
+        document.getElementById('val-money').innerText = state.money;
+        document.getElementById('val-wood').innerText = state.wood;
+        document.getElementById('val-stone').innerText = state.stone;
+        document.getElementById('deck-count').innerText = deck.length;
+
+        document.getElementById('btnRoll').disabled = state.phase !== 0;
+        document.getElementById('btnDraw').disabled = state.phase !== 1;
+        document.getElementById('btnBuild').disabled = state.phase !== 2;
+        document.getElementById('btnEnd').disabled = state.phase !== 2;
+        
+        let buffs = [];
+        if (state.trapPlaced) buffs.push(`Đang giăng`);
+        if (state.trapInInv > 0) buffs.push(`📦 1 Bẫy kho`);
+        if (state.buffs.defense > 0) buffs.push(`🛡️ Hào khí +${state.buffs.defense}`);
+        if (state.buffs.inflationEndDay >= state.day) buffs.push(`📈 Lạm phát`);
+
+        document.getElementById('buffBar').innerText = buffs.join(" | ");
+        
+        if(state.hp <= 0) {
+            logMsg(`<b>HẾT GAME! Thung lũng đã sụp đổ.</b>`);
+            document.getElementById('btnRoll').disabled = true; 
+            document.getElementById('btnDraw').disabled = true;
+        }
+    }
+
+    function toggleEventPanel(show, html = "") {
+        const ec = document.getElementById('event-container');
+        ec.style.display = show ? 'flex' : 'none';
+        if (show) ec.innerHTML = html;
+        updateUI();
+    }
+
+    /* FLOW 0: START DAY / TRAP HỎI */
+    function initPhaseRoll() {
+        if (state.trapInInv > 0 && !state.trapPlaced) {
+            logMsg("Có muốn đem Bẫy Gai ra giăng không?");
+            toggleEventPanel(true, `
+                <div style="margin-bottom:5px;">Đặt Bẫy Gai?</div>
+                <div>
+                    <button class="event-btn" onclick="answerTrap(true, true)">Có</button>
+                    <button class="event-btn" style="background:#7f8c8d;" onclick="answerTrap(false, true)">Không</button>
+                </div>
+            `);
+        } else { executePhaseRoll(); }
+    }
+
+    function executePhaseRoll() {
+        logMsg(`<b>--- NGÀY ${state.day} ---</b>`);
+        state.buffs.usedWorkshopToday = false;
+
+        if (state.buffs.skipPhase1) { logMsg("Bỏ qua thu thập do lạc rừng!"); state.buffs.skipPhase1 = false; } 
+        else {
+            if (state.buildings.market > 0 && !state.suspended.market) { state.money++; logMsg("Chợ: +1 Tiền."); }
+            if (state.buildings.camp > 0 && !state.suspended.camp) { state.stone++; logMsg("Trại: +1 Đá."); }
+            let r = rollD6();
+            if (r <= 2) { state.wood++; logMsg(`Xúc xắc ${r}: +1 Gỗ.`); }
+            else if (r <= 4) { state.stone++; logMsg(`Xúc xắc ${r}: +1 Đá.`); }
+            else { state.money++; logMsg(`Xúc xắc ${r}: +1 Tiền.`); }
+        }
+        state.phase = 1; updateUI();
+    }
+
+    /* FLOW 1: DRAW */
+    function phaseDraw() {
+        if (deck.length === 0) return;
+        state.currentCard = deck.pop(); let c = state.currentCard;
+        const actSlot = document.getElementById('active-slot');
+        actSlot.innerHTML = `${c.v}<br><span style="font-size:40px;">${c.s}</span>`;
+        actSlot.className = `ui-element card-slot ${c.color === 'red' ? 'red-suit' : ''}`;
+        
+        logMsg(`Bốc: <b>${c.v} ${c.n}</b>`);
+
+        let vNum = (c.v === 'A') ? 1 : (c.v === 'J' ? 11 : (c.v === 'Q' ? 12 : (c.v === 'K' ? 13 : parseInt(c.v))));
+
+        if (c.n === 'Bích') {
+            if (c.v === 'J') handleMonsterAttack(3, true, false); 
+            else if (c.v === 'Q') handleMonsterAttack(0, false, true); 
+            else if (c.v === 'K') handleMonsterAttack(10, false, false, true); 
+            else handleMonsterAttack(Math.floor(vNum/2), false, false);
+        }
+        else if (c.n === 'Tép') {
+            if (c.v === 'J') { state.wood += 4; state.buffs.skipPhase1 = true; logMsg(`+4 Gỗ. Mai lạc rừng.`); endEventPhase(); }
+            else if (c.v === 'Q') { state.stone += 4; logMsg(`+4 Đá.`); endEventPhase(); }
+            else if (c.v === 'K') { state.money += 3; state.wood += 3; state.stone += 3; logMsg(`Kho báu: +3 T/G/Đ!`); endEventPhase(); }
+            else {
+                let amount = Math.floor(vNum / 3);
+				if (amount <= 0) {
+                    logMsg(`Lá ${vNum} Tép quá nhỏ: Bạn tìm mỏi mắt mà chẳng thấy gì.`);
+                    endEventPhase(); 
+                } else {
+                toggleEventPanel(true, `
+                    <div>Tài nguyên (+${amount}):</div>
+                    <div>
+                        <button class="event-btn" onclick="takeRes('wood', ${amount})">Gỗ</button>
+                        <button class="event-btn" onclick="takeRes('stone', ${amount})">Đá</button>
+                    </div>
+                `);
+				}
+            }
+        }
+        else if (c.n === 'Rô') {
+            if (c.v === 'J') { state.buffs.inflationEndDay = state.day + 2; logMsg(`Lạm phát (+2 phí) 3 ngày.`); endEventPhase(); }
+            else if (c.v === 'Q') { let bonus = Math.min(state.money, 6); state.money += bonus; logMsg(`Nhân tiền: +${bonus} Tiền.`); endEventPhase(); }
+            else if (c.v === 'K') { logMsg(`Giao dịch VIP 1:1`); openTradeMenu(1); } 
+            else { 
+				let rate = (vNum >= 7) ? 2 : 3; 
+				logMsg(`Thị trường (Lá ${vNum}): Tỷ giá bán là ${rate} đổi 1.`);
+				openTradeMenu(rate);
+			}
+        }
+        else if (c.n === 'Cơ') {
+            if (c.v === 'J') { state.hp = Math.min(state.maxHp, state.hp + 4); logMsg(`Hồi 4 HP.`); endEventPhase(); }
+            else if (c.v === 'Q') { state.buffs.defense += 3; logMsg(`+3 thủ đợt sau.`); endEventPhase(); }
+            else if (c.v === 'K') { state.hp = state.maxHp; state.trapInInv++; logMsg(`Max HP & +1 Bẫy!`); endEventPhase(); }
+			else {
+				let hpRec = Math.floor(vNum / 2);
+                let goldRec = Math.floor(vNum / 4);
+				if (hpRec <= 0 && goldRec <= 0) {
+                    logMsg(`Lá ${vNum} Cơ quá yếu: Phép màu không đủ để làm gì cả.`);
+                    endEventPhase();
+				} else {
+					toggleEventPanel(true, `
+						<div>Phép màu (Lá ${vNum}):</div>
+						<div>
+							<button class="event-btn" onclick="takeRes('hp', ${hpRec})">Hồi ${hpRec} HP</button>
+							<button class="event-btn" onclick="takeRes('money', ${goldRec})">Lấy ${goldRec} Tiền</button>
+						</div>
+                `);
+				}
+            }
+        }
+    }
+
+    function endEventPhase() { state.phase = 2; toggleEventPanel(false); }
+    function takeRes(type, val) {
+        if (type === 'wood') state.wood += val; if (type === 'stone') state.stone += val;
+        if (type === 'money') state.money += val; if (type === 'hp') state.hp = Math.min(state.maxHp, state.hp + val);
+        let tenVn = type === 'wood' ? 'Gỗ' : (type === 'stone' ? 'Đá' : (type === 'money' ? 'Tiền' : 'HP'));
+        logMsg(`Đã nhận +${val} ${tenVn}.`);
+		endEventPhase();
+    }
+
+    /* BÍCH / QUÁI / BOSS */
+    function handleMonsterAttack(basePower, isJ, isQ, isK = false) {
+        let block = (state.buildings.wall > 0 && !state.suspended.wall) ? 2 : 0;
+        if (state.trapPlaced && !isK) {
+            state.trapPlaced = false; logMsg(`💥 Bẫy sập! Quái bị diệt.`);
+            endEventPhase(); return;
+        }
+
+        let atk = power = basePower; let def = 0;
+        if (isQ) { atk = rollD6() * 2; logMsg(`Lực chiến thú lạ: ${atk}`); }
+        if (isJ) { logMsg(`Đột kích! Xuyên thủng.`); } 
+        else {
+            let roll = rollD6(); def = roll + state.buffs.defense;
+            logMsg(`Thủ xúc xắc: ${roll} ${state.buffs.defense>0?'+Hào khí':''}.`);
+            state.buffs.defense = 0;
+        }
+
+        let dmg = atk - def - block;
+        if (dmg > 0) {
+            state.hp -= dmg; logMsg(`Mất ${dmg} HP (Cản ${block}).`);
+            if (isK && state.hp > 0) { triggerDestroyModal(); return; }
+        } else { logMsg(`Phòng ngự an toàn.`); }
+        endEventPhase();
+    }
+
+    function triggerDestroyModal() {
+        let pList = ['camp', 'market', 'wall', 'workshop', 'storage'];
+        let hasBuilding = pList.some(id => state.buildings[id] > 0);
+        if (!hasBuilding) { logMsg("Không có nhà để Boss phá."); endEventPhase(); return; }
+        
+		let html = `<div style="color:#e74c3c;">Boss phá 1 nhà:</div><div style="display:flex; flex-wrap:wrap; justify-content:center;">`;
+        pList.forEach(id => {
+            if (state.buildings[id] > 0) {
+			let bName = bData.find(x => x.id === id).name;
+			html += `<button class="event-btn" style="background:#c0392b;" onclick="destroyB('${id}')">>Phá ${bName}</button>`;
+			}
+		});
+        html += `</div>`;
+        toggleEventPanel(true, html);
+    }
+    function destroyB(id) {
+		state.buildings[id]--;
+		state.permBuildings--;
+		state.suspended[id] = false;
+		
+		let bName = bData.find(x => x.id === id).name;
+		logMsg(`<b>Boss đã đập nát ${bName}!</b> (Phí bảo trì giảm 1)`); 
+		removeBuildingBuff(id);
+		endEventPhase();
+	}
+
+    /* RÔ / TRADE */
+    function openTradeMenu(rate) {
+		let html = `<div> </div><div>`;
+		//Bán
+			html += `<button class="event-btn" onclick="execTrade(${rate},0,1,${rate})">Bán Gỗ ${rate}:1</button>`;  
+			html += `<button class="event-btn" onclick="execTrade(0,${rate},1,${rate})">Bán Đá ${rate}:1</button>`;
+		//Mua
+		if (rate === 1) {
+			html += `<button class="event-btn" style="background:#2980b9;" onclick="execTrade(-1,0,-1,1)">Mua Gỗ 1:1</button>`;  
+			html += `<button class="event-btn" style="background:#2980b9;" onclick="execTrade(0,-1,-1,1)">Mua Đá 1:1</button>`;
+		} else {
+			html += `<br><button class="event-btn" style="background:#2980b9;" onclick="execTrade(-3,0,-2,${rate})">Mua Gỗ 3:2</button>`;
+            html += `<button class="event-btn" style="background:#2980b9;" onclick="execTrade(0,-3,-2,${rate})">Mua Đá 3:2</button>`;
+        }
+		html += `</div><button class="event-btn" style="background:#c0392b; width:100px; margin-top:5px;" onclick="endEventPhase()">Xong</button>`;
+        toggleEventPanel(true, html);
+    }
+    function execTrade(cw, cs, gm, rate) {
+        if (cw>0 && state.wood<cw) return; 
+		if (cs>0 && state.stone<cs) return; 
+		if (gm<0 && state.money<Math.abs(gm)) return;
+        state.wood-=cw; state.stone-=cs; state.money+=gm; 
+		logMsg(`Giao dịch xong.`); 
+		openTradeMenu(rate);
+    }
+
+    /* XÂY DỰNG */
+    function openBuildMenu() {
+        document.getElementById('buildModal').style.display = 'flex';
+        const bl = document.getElementById('buildList'); bl.innerHTML = '';
+        let infl = (state.buffs.inflationEndDay >= state.day) ? 2 : 0;
+
+        bData.forEach(b => {
+            let reqM = b.cMoney > 0 ? b.cMoney + (b.id !== 'trap' ? infl : 0) : 0;
+            let canAfford = (state.money >= reqM && state.wood >= b.cWood && state.stone >= b.cStone);
+            let hasLimit = b.id === 'trap' ? (state.trapInInv > 0 || state.trapPlaced) : (state.buildings[b.id] > 0);
+            let isSusp = b.id !== 'trap' ? state.suspended[b.id] : false;
+
+            let html = `<div class="build-item">
+                <div style="width:75%;">
+                    <div style="color:#4e342e; font-weight:bold;">${b.name} ${isSusp ? '<span style="color:#e74c3c">[ĐÌNH CHỈ]</span>' : ''}</div>
+                    <div style="font-size:12px; color:#f10f0f">Phí: ${reqM} Tiền, ${b.cWood} Gỗ, ${b.cStone} Đá</div>
+                    <div style="font-size:11px; color:#000;">${b.desc}</div>
+                </div>
+                <div>`;
+            
+            if (hasLimit) html += `<button class="build-action-btn" disabled>Đã có</button>`;
+            else if (canAfford) html += `<button class="build-action-btn" onclick="buildItem('${b.id}', ${reqM}, ${b.cWood}, ${b.cStone})">Xây</button>`;
+            else html += `<button class="build-action-btn" disabled>Thiếu</button>`;
+            
+            if (isSusp) html += `<br><button class="build-action-btn" style="background:#e67e22; margin-top:5px;" ${state.wood>=1 ? `onclick="resumeItem('${b.id}')"` : 'disabled'}>Khôi phục (1 Gỗ)</button>`;
+            html += `</div></div>`; bl.innerHTML += html;
+        });
+
+        const ws = document.getElementById('workshopArea');
+        const btnWs = document.getElementById('btnUseWorkshop');
+        if (state.buildings.workshop > 0 && !state.suspended.workshop && !state.buffs.usedWorkshopToday) {
+            ws.style.display = 'block'; btnWs.disabled = state.stone < 1;
+        } else { ws.style.display = 'none'; }
+    }
+    
+    function closeBuildMenu() { document.getElementById('buildModal').style.display = 'none'; updateUI(); }
+	
+    function buildItem(id, m, w, s) {
+        state.money -= m; state.wood -= w; state.stone -= s;
+        if (id === 'trap') {
+            state.trapInInv++; logMsg(`Chế Bẫy Gai xong.`);
+            closeBuildMenu();
+            setTimeout(() => {
+                toggleEventPanel(true, `
+                    <div>Đặt bẫy luôn?</div>
+                    <div>
+                        <button class="event-btn" onclick="answerTrap(true, false)">Đặt</button>
+                        <button class="event-btn" style="background:#7f8c8d;" onclick="answerTrap(false, false)">Cất</button>
+                    </div>
+                `);
+            }, 100);
+        } else {
+            state.buildings[id]++;
+			state.permBuildings++;
+            applyBuildingBuff(id); 
+            logMsg(`Xây: ${bData.find(x=>x.id===id).name}.`);
+            openBuildMenu(); updateUI();
+        }
+    }
+
+    function answerTrap(place, fromNewDay) {
+        if (place) { state.trapInInv--; state.trapPlaced = true; logMsg("Đã giăng bẫy."); } 
+        else { logMsg("Đã cất bẫy."); }
+        toggleEventPanel(false);
+        if (fromNewDay) executePhaseRoll(); else updateUI();
+    }
+    function resumeItem(id) { state.wood--; state.suspended[id] = false; logMsg(`Đã khôi phục.`); openBuildMenu(); updateUI(); }
+    function useWorkshop() { state.stone -= 1; state.wood += 3; state.buffs.usedWorkshopToday = true; logMsg(`Xưởng: -1 Đá, +3 Gỗ.`); openBuildMenu(); updateUI(); }
+	window.closeTutorial = function() {
+        document.getElementById('tutorialModal').style.display = 'none';
+    }
+    /* KẾT THÚC NGÀY */
+    function phaseEndDay() {
+        const actSlot = document.getElementById('active-slot'); actSlot.innerHTML = ""; actSlot.className = "ui-element card-slot";
+        const ds = document.getElementById('discard-slot');
+        ds.innerHTML = `<span class="discard-val">${state.currentCard.v}</span><span class="discard-suit">${state.currentCard.s}</span>`;
+        ds.className = `ui-element card-slot ${state.currentCard.color === 'red' ? 'red-suit' : ''}`;
+        
+        if (state.day > 0 && state.day % 5 === 0) {
+            let pList = ['camp', 'market', 'wall', 'workshop', 'storage'];
+            let actCount = pList.filter(id => state.buildings[id] > 0 && !state.suspended[id]).length;
+            
+			if (actCount > 0) {
+                if (state.wood >= actCount) {
+					state.wood -= actCount; 
+					logMsg(`🛠️ Đã trả ${actCount} Gỗ phí bảo trì.`); } 
+                else {
+					logMsg(`⚠️ Thiếu gỗ! Đình chỉ toàn bộ nhà.`);
+					pList.forEach(id => {
+					if (state.buildings[id] > 0 && !state.suspended[id]) {
+					state.suspended[id] = true;
+					removeBuildingBuff(id);}
+					}); 
+				}
+            }
+        }
+
+        if (state.day >= 30) {
+            let t = state.money + Math.floor(state.wood/2) + Math.floor(state.stone/2);
+            logMsg(`<b>HẾT 30 NGÀY. Tài sản: ${t}. ${t>=35?'THẮNG!':'THUA KPI.'}</b>`);
+            state.phase = -1;
+        } else { state.day++; state.phase = 0; logMsg("<i>Đêm xuống...</i>"); }
+        updateUI();
+    }
+
+    // Khởi tạo ban đầu
+    updateUI();
+</script>
+</body>
+</html>
